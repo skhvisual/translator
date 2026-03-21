@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🇷🇺🇩🇪 Переводчик RU-DE</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding: 24px 16px; }
+  .container { max-width: 860px; margin: 0 auto; }
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header p { font-size: 13px; color: #666; margin-top: 2px; }
+  .card { background: #fff; border-radius: 14px; border: 1px solid #e8e6e0; padding: 16px; margin-bottom: 14px; }
+  .setup-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .setup-toggle span { font-size: 14px; font-weight: 500; }
+  .setup-body { margin-top: 14px; display: none; }
+  .setup-body.open { display: block; }
+  .field { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .field label { font-size: 13px; color: #555; white-space: nowrap; min-width: 90px; }
+  .field input, .field select { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 11px; font-size: 13px; background: #fafafa; color: #1a1a18; outline: none; font-family: monospace; }
+  .field input:focus, .field select:focus { border-color: #aaa; background: #fff; }
+  .field select { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .status { font-size: 12px; padding: 7px 11px; border-radius: 8px; background: #f5f4f0; color: #888; margin-bottom: 12px; }
+  .status.ok { background: #f0faf4; color: #1a7a3f; }
+  .status.err { background: #fdf2f2; color: #c0392b; }
+  .save-btn { background: #1a1a18; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .save-btn:hover { background: #333; }
+  .lang-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .lang-label { font-size: 13px; font-weight: 500; color: #555; flex: 1; }
+  .swap-btn { background: none; border: 1px solid #ddd; border-radius: 20px; padding: 5px 14px; font-size: 13px; color: #555; cursor: pointer; transition: background .15s; }
+  .swap-btn:hover { background: #f5f4f0; }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 560px) { .panels { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid #e8e6e0; border-radius: 12px; overflow: hidden; background: #fff; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; border-bottom: 1px solid #f0ede8; background: #fafaf8; }
+  .panel-lang { font-size: 12px; font-weight: 600; color: #555; letter-spacing: .03em; }
+  .panel-actions { display: flex; gap: 2px; }
+  .icon-btn { background: none; border: none; cursor: pointer; padding: 4px 7px; border-radius: 6px; font-size: 14px; color: #888; transition: background .15s; }
+  .icon-btn:hover { background: #f0ede8; }
+  .icon-btn.active { color: #2563eb; }
+  textarea { width: 100%; border: none; background: transparent; resize: none; font-size: 15px; color: #1a1a18; padding: 13px; font-family: inherit; line-height: 1.6; outline: none; min-height: 130px; }
+  .result-box { padding: 13px; font-size: 15px; color: #1a1a18; line-height: 1.6; min-height: 130px; white-space: pre-wrap; word-break: break-word; }
+  .placeholder { color: #bbb; font-style: italic; }
+  .char-count { font-size: 11px; color: #bbb; text-align: right; padding: 4px 13px 8px; }
+  .translate-btn { width: 100%; background: #1a1a18; color: #fff; border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; transition: opacity .15s; margin-bottom: 12px; }
+  .translate-btn:hover { opacity: .85; }
+  .translate-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .check-card { border: 1px solid #e8e6e0; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  .check-head { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border-bottom: 1px solid #f0ede8; background: #fafaf8; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .check-title { font-size: 13px; font-weight: 500; }
+  .badge { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 500; margin-left: auto; background: #e8f0fe; color: #1a56db; }
+  .badge.green { background: #f0faf4; color: #1a7a3f; }
+  .badge.orange { background: #fff8e6; color: #b45309; }
+  .badge.red { background: #fdf2f2; color: #c0392b; }
+  .check-body { padding: 13px 15px; font-size: 13px; color: #555; line-height: 1.6; }
+  .score-row { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+  .score-bar { flex: 1; height: 5px; background: #eee; border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width .7s ease; background: #ccc; }
+  .score-val { font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; }
+  .sug-item { background: #f5f4f0; border-radius: 8px; padding: 9px 11px; font-size: 13px; color: #1a1a18; margin-top: 7px; cursor: pointer; border: 1px solid transparent; transition: border-color .15s; }
+  .sug-item:hover { border-color: #ccc; }
+  .sug-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
+  .error-box { background: #fdf2f2; color: #c0392b; border-radius: 8px; padding: 9px 13px; font-size: 13px; margin-bottom: 12px; display: none; }
+  .dots { display: inline-flex; gap: 4px; align-items: center; }
+  .dots span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: bounce .9s ease-in-out infinite; }
+  .dots span:nth-child(2) { animation-delay: .15s; }
+  .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:.5} 30%{transform:translateY(-4px);opacity:1} }
+  .footer { font-size: 12px; color: #aaa; text-align: center; margin-top: 8px; }
+  .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 10px 14px; background: #fff; border: 1px solid #e8e6e0; border-radius: 12px; }
+  .toggle-label { font-size: 13px; color: #555; flex: 1; }
+  .toggle-hint { font-size: 11px; color: #aaa; }
+  .tgl { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .tgl input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .tgl-track { position: absolute; inset: 0; background: #ddd; border-radius: 11px; cursor: pointer; transition: background .2s; }
+  .tgl input:checked + .tgl-track { background: #1a7a3f; }
+  .tgl-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform .2s; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .tgl input:checked ~ .tgl-thumb { transform: translateX(18px); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <span style="font-size:28px">🇷🇺🇩🇪</span>
+    <div>
+      <h1>Русско-немецкий переводчик</h1>
+      <p>OpenAI GPT · AI-проверка · Web Speech API</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="setup-toggle" onclick="toggleSetup()">
+      <span>⚙️ Настройки подключения</span>
+      <span id="setupArrow" style="font-size:12px;color:#aaa">▼</span>
+    </div>
+    <div class="setup-body open" id="setupBody">
+      <div style="height:12px"></div>
+      <div class="field">
+        <label>Прокси URL:</label>
+        <input type="text" id="proxyUrl" placeholder="https://openai-proxy.name.workers.dev">
+      </div>
+      <div class="field">
+        <label>OpenAI ключ:</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label>Модель:</label>
+        <select id="modelSelect" onchange="updateCost()">
+          <option value="gpt-4o-mini">gpt-4o-mini (рекомендуется, ~$0.0003/запрос)</option>
+          <option value="gpt-4o">gpt-4o (умнее, ~$0.005/запрос)</option>
+          <option value="gpt-3.5-turbo">gpt-3.5-turbo (дёшево, ~$0.0001/запрос)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label></label>
+        <button class="save-btn" onclick="saveSettings()">Сохранить</button>
+      </div>
+      <div class="status" id="apiStatus">⚠️ Укажите URL прокси и API ключ OpenAI</div>
+    </div>
+  </div>
+
+  <div class="lang-bar">
+    <div class="lang-label" id="srcLabel">🇷🇺 Русский</div>
+    <button class="swap-btn" onclick="swapLangs()">⇄ Поменять</button>
+    <div class="lang-label" style="text-align:right" id="tgtLabel">Немецкий 🇩🇪</div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-lang" id="srcPanelLang">RU · Исходный</span>
+        <div class="panel-actions">
+          <button class="icon-btn" onclick="clearAll()" title="Очистить">✕</button>
+          <button class="icon-btn" id="micBtn" onclick="toggleMic()" title="Голосовой ввод">🎤</button>
+          <button class="icon-btn" onclick="speakSrc()" title="Озвучить">🔊</button>
+        </div>
+      </div>
+      <textarea id="srcText" placeholder="Введите текст на русском..." oninput="updateCount()" onkeydown="onKey(event)"></textarea>
+      <div class="char-count" id="charCount">0 / 1000</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-lang" id="tgtPanelLang">DE · Перевод</span>
+        <div class="panel-actions">
+          <button class="icon-btn" onclick="copyResult()" id="copyBtn" title="Копировать">📋</button>
+          <button class="icon-btn" onclick="speakResult()" title="Озвучить">🔊</button>
+        </div>
+      </div>
+      <div id="resultText" class="result-box"><span class="placeholder">Здесь появится перевод...</span></div>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">🤖 AI-проверка перевода</div>
+      <div class="toggle-hint">Отключите для экономии токенов — только перевод без оценки</div>
+    </div>
+    <label class="tgl">
+      <input type="checkbox" id="checkToggle" checked onchange="saveCheckToggle()">
+      <div class="tgl-track"></div>
+      <div class="tgl-thumb"></div>
+    </label>
+  </div>
+
+  <button class="translate-btn" id="translateBtn" onclick="doTranslate()">Перевести</button>
+
+  <div id="errorBox" class="error-box"></div>
+
+  <div id="checkSection" style="display:none">
+    <div class="check-card">
+      <div class="check-head">
+        <div class="dot" id="checkDot"></div>
+        <span class="check-title" id="checkTitle">AI-проверка</span>
+        <span class="badge" id="checkBadge">OpenAI</span>
+      </div>
+      <div class="check-body">
+        <div class="score-row">
+          <span style="font-size:12px;color:#aaa">Корректность</span>
+          <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:0%"></div></div>
+          <span class="score-val" id="scoreVal">—</span>
+        </div>
+        <div id="checkText"></div>
+        <div id="sugBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">🔊 Озвучка: Web Speech API (бесплатно) · Ctrl+Enter для перевода</div>
+</div>
+
+<script>
+let srcLang='ru', tgtLang='de', currentTranslation='', apiKey='', proxyUrl='', isListening=false, recognition=null;
+
+// Загружаем сохранённые настройки
+(function loadSaved() {
+  const savedProxy = localStorage.getItem('translator_proxy');
+  const savedKey   = localStorage.getItem('translator_key');
+  const savedModel = localStorage.getItem('translator_model');
+  if (savedProxy) { document.getElementById('proxyUrl').value = savedProxy; proxyUrl = savedProxy; }
+  if (savedKey)   { document.getElementById('apiKey').value = savedKey;     apiKey = savedKey; }
+  if (savedModel) { document.getElementById('modelSelect').value = savedModel; }
+  if (savedProxy && savedKey) {
+    const st = document.getElementById('apiStatus');
+    st.className = 'status ok';
+    st.textContent = '✅ Настройки загружены автоматически. Переводчик готов!';
+    document.getElementById('setupBody').classList.remove('open');
+    document.getElementById('setupArrow').textContent = '▼';
+  }
+  const savedCheck = localStorage.getItem('translator_check');
+  if (savedCheck === '0') document.getElementById('checkToggle').checked = false;
+})();
+
+const L = {
+  ru: { label:'🇷🇺 Русский', panel:'RU · Исходный', code:'ru-RU', placeholder:'Введите текст на русском...' },
+  de: { label:'Немецкий 🇩🇪', panel:'DE · Перевод', code:'de-DE', placeholder:'Deutschen Text eingeben...' }
+};
+
+function toggleSetup() {
+  const b = document.getElementById('setupBody');
+  const a = document.getElementById('setupArrow');
+  const open = b.classList.toggle('open');
+  a.textContent = open ? '▲' : '▼';
+}
+
+function saveSettings() {
+  const k = document.getElementById('apiKey').value.trim();
+  const p = document.getElementById('proxyUrl').value.trim();
+  const st = document.getElementById('apiStatus');
+  if (!p) { st.className='status err'; st.textContent='❌ Укажите URL прокси-сервера'; return; }
+  if (!k.startsWith('sk-')) { st.className='status err'; st.textContent='❌ Неверный формат ключа OpenAI'; return; }
+  apiKey=k; proxyUrl=p.replace(/\/$/,'');
+  localStorage.setItem('translator_proxy', proxyUrl);
+  localStorage.setItem('translator_key', apiKey);
+  localStorage.setItem('translator_model', document.getElementById('modelSelect').value);
+  st.className='status ok'; st.textContent='✅ Настройки сохранены и запомнены!';
+  setTimeout(()=>{ document.getElementById('setupBody').classList.remove('open'); document.getElementById('setupArrow').textContent='▼'; }, 1000);
+}
+
+function swapLangs() {
+  [srcLang,tgtLang]=[tgtLang,srcLang];
+  const prev=document.getElementById('srcText').value;
+  document.getElementById('srcText').value=currentTranslation;
+  document.getElementById('resultText').innerHTML=prev?escHtml(prev):'<span class="placeholder">Здесь появится перевод...</span>';
+  currentTranslation=prev; updateLabels(); updateCount();
+  document.getElementById('checkSection').style.display='none';
+}
+
+function updateLabels() {
+  document.getElementById('srcLabel').textContent=L[srcLang].label;
+  document.getElementById('tgtLabel').textContent=L[tgtLang].label;
+  document.getElementById('srcPanelLang').textContent=L[srcLang].panel;
+  document.getElementById('tgtPanelLang').textContent=L[tgtLang].panel;
+  document.getElementById('srcText').placeholder=L[srcLang].placeholder;
+}
+
+function updateCount() {
+  document.getElementById('charCount').textContent=document.getElementById('srcText').value.length+' / 1000';
+}
+
+function clearAll() {
+  document.getElementById('srcText').value='';
+  document.getElementById('resultText').innerHTML='<span class="placeholder">Здесь появится перевод...</span>';
+  document.getElementById('checkSection').style.display='none';
+  document.getElementById('errorBox').style.display='none';
+  currentTranslation=''; updateCount();
+}
+
+function showError(msg) { const e=document.getElementById('errorBox'); e.textContent=msg; e.style.display='block'; }
+function hideError() { document.getElementById('errorBox').style.display='none'; }
+
+async function callProxy(messages, jsonMode) {
+  if (!proxyUrl) throw new Error('URL прокси не указан. Откройте настройки выше.');
+  if (!apiKey) throw new Error('API ключ OpenAI не введён.');
+  const model=document.getElementById('modelSelect').value;
+  const body={model, messages, max_tokens:800, _apiKey:apiKey};
+  if (jsonMode) body.response_format={type:'json_object'};
+  const resp=await fetch(proxyUrl, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  const data=await resp.json();
+  if (!resp.ok||data.error) {
+    const msg=data.error?.message||('HTTP '+resp.status);
+    if (msg.includes('401')||msg.includes('Incorrect')) throw new Error('Неверный API ключ OpenAI.');
+    if (msg.includes('429')) throw new Error('Превышен лимит запросов. Подождите.');
+    if (msg.includes('billing')||msg.includes('quota')) throw new Error('Недостаточно кредитов OpenAI. Пополните баланс.');
+    throw new Error(msg);
+  }
+  return data.choices[0].message.content||'';
+}
+
+async function doTranslate() {
+  const text=document.getElementById('srcText').value.trim();
+  if (!text) return;
+  if (text.length>1000) { showError('Текст слишком длинный (макс. 1000 символов)'); return; }
+  const btn=document.getElementById('translateBtn');
+  btn.disabled=true; btn.innerHTML='<span class="dots"><span></span><span></span><span></span></span>';
+  hideError(); document.getElementById('checkSection').style.display='none';
+  const srcName=srcLang==='ru'?'Russian':'German';
+  const tgtName=tgtLang==='de'?'German':'Russian';
+  try {
+    const translation=await callProxy([
+      {role:'system',content:`You are a professional ${srcName}-${tgtName} translator. Output ONLY the translation, no notes, no quotes.`},
+      {role:'user',content:text}
+    ],false);
+    currentTranslation=translation.trim();
+    document.getElementById('resultText').textContent=currentTranslation;
+    if (document.getElementById('checkToggle').checked) {
+      await doCheck(text, currentTranslation);
+    } else {
+      document.getElementById('checkSection').style.display='none';
+    }
+  } catch(e) { showError('Ошибка: '+e.message); }
+  btn.disabled=false; btn.innerHTML='Перевести';
+}
+
+async function doCheck(srcOv, tgtOv) {
+  const src=srcOv||document.getElementById('srcText').value.trim();
+  const tgt=tgtOv||currentTranslation;
+  if (!src||!tgt) return;
+  document.getElementById('checkSection').style.display='block';
+  document.getElementById('checkTitle').textContent='Проверяю перевод...';
+  document.getElementById('checkDot').style.background='#ccc';
+  document.getElementById('checkText').innerHTML='<span class="dots"><span></span><span></span><span></span></span>';
+  document.getElementById('scoreFill').style.width='0%';
+  document.getElementById('scoreVal').textContent='...';
+  document.getElementById('sugBox').innerHTML='';
+  document.getElementById('checkBadge').className='badge';
+  document.getElementById('checkBadge').textContent=document.getElementById('modelSelect').value;
+  const srcName=srcLang==='ru'?'Russian':'German';
+  const tgtName=tgtLang==='de'?'German':'Russian';
+  try {
+    const raw=await callProxy([
+      {role:'system',content:`You are a strict ${srcName}-${tgtName} translation quality checker. Your job is to evaluate the ${tgtName} translation for grammar correctness, naturalness, and faithfulness to the original. Respond ONLY with valid JSON.`},
+      {role:'user',content:`I have a ${srcName} text and its ${tgtName} translation. Evaluate ONLY the quality of the ${tgtName} translation — check grammar, word choice, naturalness, and accuracy compared to the original.\n\nOriginal (${srcName}): "${src}"\nTranslation (${tgtName}): "${tgt}"\n\nReturn JSON: {"score":0-100,"verdict":"one sentence in Russian about the GERMAN translation quality","issues":"specific problems with the German translation in Russian, or null","alternatives":["improved ${tgtName} variant if score<85"]}`}
+    ],true);
+    const result=JSON.parse(raw);
+    const score=Math.min(100,Math.max(0,parseInt(result.score)||0));
+    let dotColor,badgeClass,label;
+    if (score>=85){dotColor='#22c55e';badgeClass='green';label='Перевод корректен';}
+    else if (score>=60){dotColor='#f59e0b';badgeClass='orange';label='Приемлемый перевод';}
+    else {dotColor='#ef4444';badgeClass='red';label='Требует улучшения';}
+    document.getElementById('checkDot').style.background=dotColor;
+    document.getElementById('checkTitle').textContent=label;
+    document.getElementById('checkBadge').className='badge '+badgeClass;
+    document.getElementById('checkBadge').textContent=score+'%';
+    document.getElementById('scoreFill').style.width=score+'%';
+    document.getElementById('scoreFill').style.background=dotColor;
+    document.getElementById('scoreVal').textContent=score+'%';
+    document.getElementById('scoreVal').style.color=dotColor;
+    let html='';
+    if (result.verdict) html+='<p>'+escHtml(result.verdict)+'</p>';
+    if (result.issues&&result.issues!=='null') html+='<p style="margin-top:6px;color:#b45309">⚠️ '+escHtml(result.issues)+'</p>';
+    document.getElementById('checkText').innerHTML=html;
+    const sugBox=document.getElementById('sugBox');
+    if (result.alternatives&&result.alternatives.length>0) {
+      sugBox.innerHTML='<p style="font-size:12px;color:#aaa;margin-top:10px;margin-bottom:4px">Альтернативные варианты:</p>';
+      result.alternatives.forEach((alt,i)=>{
+        const d=document.createElement('div'); d.className='sug-item';
+        d.innerHTML='<div class="sug-label">Вариант '+(i+1)+'</div>'+escHtml(alt);
+        d.onclick=()=>{document.getElementById('resultText').textContent=alt; currentTranslation=alt;};
+        sugBox.appendChild(d);
+      });
+    }
+  } catch(e) {
+    document.getElementById('checkTitle').textContent='Ошибка проверки';
+    document.getElementById('checkText').textContent=e.message;
+  }
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function speakText(t,code){
+  if (!window.speechSynthesis){alert('Озвучка не поддерживается');return;}
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t); u.lang=code; u.rate=0.9;
+  window.speechSynthesis.speak(u);
+}
+function speakSrc(){const t=document.getElementById('srcText').value.trim();if(t)speakText(t,srcLang==='ru'?'ru-RU':'de-DE');}
+function speakResult(){if(currentTranslation)speakText(currentTranslation,tgtLang==='de'?'de-DE':'ru-RU');}
+
+function copyResult(){
+  if(!currentTranslation)return;
+  navigator.clipboard.writeText(currentTranslation).then(()=>{
+    const b=document.getElementById('copyBtn');b.textContent='✓';
+    setTimeout(()=>b.textContent='📋',1500);
+  });
+}
+
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Голосовой ввод не поддерживается в этом браузере');return;}
+  if(isListening){recognition.stop();return;}
+  recognition=new SR(); recognition.lang=srcLang==='ru'?'ru-RU':'de-DE'; recognition.interimResults=false;
+  recognition.onstart=()=>{isListening=true;document.getElementById('micBtn').classList.add('active');document.getElementById('micBtn').textContent='⏹';};
+  recognition.onresult=e=>{document.getElementById('srcText').value+=e.results[0][0].transcript;updateCount();};
+  recognition.onend=()=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';};
+  recognition.onerror=e=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';if(e.error!=='aborted')alert('Ошибка микрофона: '+e.error);};
+  recognition.start();
+}
+
+function onKey(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();doTranslate();}}
+
+function saveCheckToggle(){
+  localStorage.setItem('translator_check', document.getElementById('checkToggle').checked ? '1' : '0');
+}
+
+updateLabels();
+</script>
+</body>
+</html>
