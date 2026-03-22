@@ -301,7 +301,7 @@ let isListening=false, recognition=null;
 let currentMode='translator', currentLevel='native';
 let dlgSrcLang='ru', dlgTgtLang='de';
 let dlgRecognition=null, dlgActive=false;
-let silenceTimer=null, interimEntry=null;
+let silenceTimer=null, interimEntry=null, dlgBuffer='';
 let translateQueue=[], isSpeaking=false, autoSpeak=true;
 let selectedMicId='';
 
@@ -568,6 +568,7 @@ function stopDialog(){
   document.getElementById('dlgStopBtn').style.display='none';
   setDlgStatus('','Остановлен');
   interimEntry=null;
+  dlgBuffer='';
 }
 
 function startDlgRecognition(){
@@ -579,25 +580,44 @@ function startDlgRecognition(){
     dlgRecognition.interimResults=true;
     dlgRecognition.continuous=false;
     dlgRecognition.maxAlternatives=1;
+
     dlgRecognition.onresult=(e)=>{
-      let interim='',final='';
+      let interim='', final='';
       for(let i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+        if(e.results[i].isFinal) final+=e.results[i][0].transcript+' ';
         else interim+=e.results[i][0].transcript;
       }
-      if(interim){
-        if(!interimEntry){interimEntry=addToLog('srcLog',interim,'interim');}
-        else{interimEntry.textContent=interim;document.getElementById('srcLog').scrollTop=document.getElementById('srcLog').scrollHeight;}
+
+      // Accumulate finals into buffer — never lose partial sentences
+      if(final){
+        dlgBuffer += final;
+        if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null;}
+      }
+
+      // Show live preview: buffer + current interim
+      const preview=(dlgBuffer+interim).trim();
+      if(preview){
+        if(!interimEntry){interimEntry=addToLog('srcLog',preview,'interim');}
+        else{interimEntry.textContent=preview;document.getElementById('srcLog').scrollTop=document.getElementById('srcLog').scrollHeight;}
+      }
+
+      // Reset silence timer on every new word (final or interim)
+      if(final||interim){
         if(silenceTimer) clearTimeout(silenceTimer);
         const delay=parseFloat(document.getElementById('silenceDelay').value)*1000;
-        silenceTimer=setTimeout(()=>{if(interimEntry){const t=interimEntry.textContent;interimEntry.remove();interimEntry=null;finalizePhrase(t);}},delay);
-      }
-      if(final){
-        if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null;}
-        if(interimEntry){interimEntry.remove();interimEntry=null;}
-        finalizePhrase(final.trim());
+        silenceTimer=setTimeout(()=>{
+          if(dlgBuffer.trim()){
+            const t=dlgBuffer.trim();
+            dlgBuffer='';
+            if(interimEntry){interimEntry.remove();interimEntry=null;}
+            finalizePhrase(t);
+          }
+        },delay);
       }
     };
+
+    // On session end — restart immediately (keeps listening continuously)
+    // Do NOT flush buffer on end — Chrome cuts sessions mid-sentence!
     dlgRecognition.onend=()=>{if(dlgActive) setTimeout(startDlgRecognition,80);};
     dlgRecognition.onerror=(e)=>{
       if(e.error==='no-speech'||e.error==='aborted') return;
@@ -606,7 +626,6 @@ function startDlgRecognition(){
     };
     try{dlgRecognition.start();}catch(e){}
   };
-  // Always go through activateVirtualCable — handles both real mic and virtual cable
   activateVirtualCable().then(doStart).catch(doStart);
 }
 
