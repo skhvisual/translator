@@ -435,7 +435,12 @@ async function callProxy(messages,jsonMode){
 }
 
 function buildTranslatePrompt(srcName,tgtName,forDialog){
-  const base=`You are a professional ${srcName}-${tgtName} translator. Output ONLY the translation, no notes, no quotes.`+(forDialog?' Keep it concise and natural for spoken dialogue.':'');
+  const dialogExtra = forDialog ? ` CRITICAL RULES for dialogue mode:
+1. ALWAYS translate every word/phrase, never return the original unchanged.
+2. Even single words, slang, or incomplete sentences MUST be translated.
+3. If the phrase is ambiguous, give the most natural spoken translation.
+4. Never leave ${srcName} words in your output — translate everything to ${tgtName}.` : '';
+  const base=`You are a professional ${srcName}-${tgtName} translator. Output ONLY the translation, no notes, no quotes, no explanations.`+dialogExtra;
   const lvl=(tgtName!=='Russian')?'\n\n'+LEVEL_PROMPTS[currentLevel]:'';
   return base+lvl;
 }
