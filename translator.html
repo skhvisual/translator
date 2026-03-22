@@ -326,7 +326,7 @@ const LEVEL_PROMPTS={
   const sc=localStorage.getItem('translator_check');
   const sa=localStorage.getItem('translator_autospeak');
   const savedMic=localStorage.getItem('translator_mic');
-  if(savedMic){selectedMicId=savedMic;}
+  if(savedMic){selectedMicId=savedMic;setTimeout(activateVirtualCable,500);}
   if(sp){document.getElementById('proxyUrl').value=sp;proxyUrl=sp;}
   if(sk){document.getElementById('apiKey').value=sk;apiKey=sk;}
   if(sm) document.getElementById('modelSelect').value=sm;
@@ -606,11 +606,8 @@ function startDlgRecognition(){
     };
     try{dlgRecognition.start();}catch(e){}
   };
-  if(selectedMicId){
-    navigator.mediaDevices.getUserMedia(getAudioConstraints())
-      .then(stream=>{stream.getTracks().forEach(t=>t.stop());doStart();})
-      .catch(()=>doStart());
-  } else { doStart(); }
+  // Always go through activateVirtualCable — handles both real mic and virtual cable
+  activateVirtualCable().then(doStart).catch(doStart);
 }
 
 function finalizePhrase(text){
@@ -698,11 +695,49 @@ async function refreshMics(){
 function onMicChange(){
   selectedMicId=document.getElementById('micSelect').value;
   localStorage.setItem('translator_mic',selectedMicId);
+  // Pre-activate so Chrome registers the device
+  activateVirtualCable();
+  const st=document.getElementById('micStatus');
+  st.style.display='block';
+  st.className='status ok';
+  st.textContent= selectedMicId ? '✅ Устройство выбрано и активировано.' : '✅ Используется системный микрофон.';
 }
 
-function getAudioConstraints(langCode){
-  const base={audio: selectedMicId ? {deviceId:{exact:selectedMicId}, echoCancellation:true, noiseSuppression:true} : {echoCancellation:true, noiseSuppression:true}};
-  return base;
+function getAudioConstraints(){
+  if(!selectedMicId) return {audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}};
+  return {audio:{
+    deviceId:{exact:selectedMicId},
+    echoCancellation:false,   // OFF for virtual cable — no echo to cancel
+    noiseSuppression:false,   // OFF — virtual cable has no noise
+    autoGainControl:false,    // OFF — don't mess with virtual cable levels
+    latency:0
+  }};
+}
+
+// Keep a persistent AudioContext stream for virtual cable devices
+let virtualStream=null, audioCtx=null, mediaStreamSource=null;
+
+async function activateVirtualCable(){
+  // Release previous stream
+  if(virtualStream){virtualStream.getTracks().forEach(t=>t.stop());virtualStream=null;}
+  if(audioCtx){try{await audioCtx.close();}catch(e){}audioCtx=null;}
+
+  if(!selectedMicId) return; // no device selected — use default
+
+  try{
+    // Grab the stream with all processing OFF
+    virtualStream = await navigator.mediaDevices.getUserMedia(getAudioConstraints());
+
+    // Route through AudioContext so Chrome treats it as a proper audio input
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    mediaStreamSource = audioCtx.createMediaStreamSource(virtualStream);
+    // Connect to destination to keep the context alive
+    mediaStreamSource.connect(audioCtx.destination);
+
+    console.log('Virtual cable activated:', selectedMicId);
+  }catch(e){
+    console.warn('activateVirtualCable error:', e);
+  }
 }
 
 // ── Translator mic & TTS ──────────────────────────────────────────────────────
@@ -725,29 +760,17 @@ function toggleMic(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){alert('Голосовой ввод не поддерживается');return;}
   if(isListening){recognition.stop();return;}
-  // Pre-acquire stream with selected mic so browser uses it
-  const constraints=getAudioConstraints();
-  navigator.mediaDevices.getUserMedia(constraints).then(stream=>{
-    stream.getTracks().forEach(t=>t.stop()); // release, just needed for device activation
-    recognition=new SR();
-    recognition.lang=srcLang==='ru'?'ru-RU':'de-DE';
-    recognition.interimResults=false;
-    if(selectedMicId) recognition.audioTrack=stream.getAudioTracks()[0]; // hint for some browsers
-    recognition.onstart=()=>{isListening=true;document.getElementById('micBtn').classList.add('active');document.getElementById('micBtn').textContent='⏹';};
-    recognition.onresult=e=>{document.getElementById('srcText').value+=e.results[0][0].transcript;updateCount();};
-    recognition.onend=()=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';};
-    recognition.onerror=e=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';if(e.error!=='aborted')alert('Ошибка микрофона: '+e.error);};
-    recognition.start();
-  }).catch(()=>{
-    // Fallback without device selection
+  const startRec=()=>{
     recognition=new SR();
     recognition.lang=srcLang==='ru'?'ru-RU':'de-DE';recognition.interimResults=false;
     recognition.onstart=()=>{isListening=true;document.getElementById('micBtn').classList.add('active');document.getElementById('micBtn').textContent='⏹';};
     recognition.onresult=e=>{document.getElementById('srcText').value+=e.results[0][0].transcript;updateCount();};
     recognition.onend=()=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';};
-    recognition.onerror=e=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';};
+    recognition.onerror=e=>{isListening=false;document.getElementById('micBtn').classList.remove('active');document.getElementById('micBtn').textContent='🎤';if(e.error!=='aborted')alert('Ошибка микрофона: '+e.error);};
     recognition.start();
-  });
+  };
+  // Activate virtual cable / selected device first, then start recognition
+  activateVirtualCable().then(startRec).catch(startRec);
 }
 function onKey(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();doTranslate();}}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
