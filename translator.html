@@ -581,6 +581,12 @@ function startDlgRecognition(){
     dlgRecognition.continuous=false;
     dlgRecognition.maxAlternatives=1;
 
+    // Restore reference to existing interim entry if it survived the restart
+    if(!interimEntry){
+      const existing=document.querySelector('#srcLog .interim:last-child');
+      if(existing) interimEntry=existing;
+    }
+
     dlgRecognition.onresult=(e)=>{
       let interim='', final='';
       for(let i=e.resultIndex;i<e.results.length;i++){
@@ -616,9 +622,14 @@ function startDlgRecognition(){
       }
     };
 
-    // On session end — restart immediately (keeps listening continuously)
-    // Do NOT flush buffer on end — Chrome cuts sessions mid-sentence!
-    dlgRecognition.onend=()=>{if(dlgActive) setTimeout(startDlgRecognition,80);};
+    // On session end — restart immediately, preserve buffer and interim entry!
+    // Chrome cuts sessions mid-sentence — we must NOT lose accumulated text
+    dlgRecognition.onend=()=>{
+      if(!dlgActive) return;
+      // Keep interimEntry visible during restart gap — do NOT remove it
+      // Keep dlgBuffer intact — do NOT clear it
+      setTimeout(startDlgRecognition, 80);
+    };
     dlgRecognition.onerror=(e)=>{
       if(e.error==='no-speech'||e.error==='aborted') return;
       if(e.error==='not-allowed'){stopDialog();alert('Нет доступа к микрофону');return;}
